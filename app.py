@@ -16,6 +16,7 @@ from src.preprocesamiento import load_and_clean_data
 from src.clasificacion import create_binary_target, split_data, train_logistic_regression, train_random_forest
 from src.evaluacion import compute_auc
 from src.series_temporales import prepare_time_series, train_test_split_time_series, run_arima, run_holt_winters, compare_models
+from src.k_fold import aplicar_kfold
 
 
 # ==========================
@@ -104,8 +105,8 @@ def cargar_datos():
 with st.sidebar:
     selected = option_menu(
         menu_title="Menú Principal",
-        options=["Inicio", "EDA", "Clasificación", "Series de Tiempo"],
-        icons=["house", "bar-chart", "cpu", "clock"],
+        options=["Inicio", "EDA", "Clasificación", "Series de Tiempo", "K-Fold Validation"],
+        icons=["house", "bar-chart", "cpu", "clock", "shuffle"],
         menu_icon="cast",
         default_index=0,
     )
@@ -237,3 +238,37 @@ elif selected == "Series de Tiempo":
     fig_ts.add_trace(go.Scatter(y=hw_forecast, name="Holt-Winters"))
     fig_ts.update_layout(title="Forecast vs Real", xaxis_title="Tiempo", yaxis_title="Consumo")
     st.plotly_chart(fig_ts, use_container_width=True)
+
+# ---pagina de k-fold validation ---
+elif selected == "K-Fold Validation":
+
+    st.title("🔁 K-Fold Cross Validation")
+
+    st.info("Applying Stratified K-Fold validation...")
+
+    from src.k_fold import aplicar_kfold
+
+    # Aquí asegúrate de tener X e y igual que en clasificación
+    X = df.drop("target", axis=1)
+    y = df["target"]
+
+    log_auc_mean, log_auc_std, rf_auc_mean, rf_auc_std = aplicar_kfold(X, y)
+
+    col1, col2 = st.columns(2)
+
+    col1.metric(
+        "Logistic Regression AUC (mean)",
+        f"{log_auc_mean:.4f}",
+        f"± {log_auc_std:.4f}"
+    )
+
+    col2.metric(
+        "Random Forest AUC (mean)",
+        f"{rf_auc_mean:.4f}",
+        f"± {rf_auc_std:.4f}"
+    )
+
+    st.markdown("""
+    This validation technique reduces overfitting risk and provides
+    a more robust estimate of model performance.
+    """)
