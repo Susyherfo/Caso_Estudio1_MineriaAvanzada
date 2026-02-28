@@ -28,33 +28,66 @@ def create_binary_target(df: pd.DataFrame) -> pd.DataFrame:
         df['global_active_power'] > threshold
     ).astype(int)
 
+
+
+# ---------------------------------------
+# Feature Engineering Temporal
+# ---------------------------------------
+
+    df.index = pd.to_datetime(df.index)
+
+    df["hour"] = df.index.hour
+    df["day_of_week"] = df.index.dayofweek
+    df["month"] = df.index.month
+    print(df.columns)
+
     return df
 
+def preparar_features(df):
 
-def split_data(df: pd.DataFrame):
-    """
-    separa variables predictoras y variable objetivo
-    divide en entrenamiento y prueba
-    """
+    df = df.copy()
+    df.columns = df.columns.str.lower()
 
-    # seleccionar variables predictoras
-    X = df[['voltage']]
+    # Crear variable objetivo
+    threshold = df['global_active_power'].mean()
+    df['high_consumption'] = (
+        df['global_active_power'] > threshold
+    ).astype(int)
 
+    # Asegurar índice datetime
+    df.index = pd.to_datetime(df.index)
 
-    # variable objetivo
+    # Feature engineering
+    df["hour"] = df.index.hour
+    df["day_of_week"] = df.index.dayofweek
+    df["month"] = df.index.month
+
+    features = [
+        'voltage',
+        'global_intensity',
+        'sub_metering_1',
+        'sub_metering_2',
+        'sub_metering_3',
+        'hour',
+        'day_of_week',
+        'month'
+    ]
+
+    X = df[features]
     y = df['high_consumption']
 
-    # dividir datos
-    X_train, X_test, y_train, y_test = train_test_split(
-        X,
-        y,
+    return X, y
+
+def split_data(df):
+
+    X, y = preparar_features(df)
+
+    return train_test_split(
+        X, y,
         test_size=0.2,
         random_state=42,
-        stratify=y  # mantiene proporción de clases
+        stratify=y
     )
-
-    return X_train, X_test, y_train, y_test
-
 
 def train_logistic_regression(X_train, y_train):
     """

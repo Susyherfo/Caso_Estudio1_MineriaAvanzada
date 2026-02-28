@@ -239,18 +239,17 @@ elif selected == "Series de Tiempo":
     fig_ts.update_layout(title="Forecast vs Real", xaxis_title="Tiempo", yaxis_title="Consumo")
     st.plotly_chart(fig_ts, use_container_width=True)
 
-# ---pagina de k-fold validation ---
+# --- pagina de k-fold validation ---
 elif selected == "K-Fold Validation":
 
-    st.title("🔁 K-Fold Cross Validation")
-
+    st.title("K-Fold Cross Validation")
     st.info("Applying Stratified K-Fold validation...")
 
     from src.k_fold import aplicar_kfold
+    from src.clasificacion import preparar_features
 
-    # Aquí asegúrate de tener X e y igual que en clasificación
-    X = df.drop("target", axis=1)
-    y = df["target"]
+    # Obtener X e y correctamente
+    X, y = preparar_features(df)
 
     log_auc_mean, log_auc_std, rf_auc_mean, rf_auc_std = aplicar_kfold(X, y)
 

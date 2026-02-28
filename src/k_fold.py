@@ -5,6 +5,8 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import roc_auc_score
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 
 
 def aplicar_kfold(X, y, n_splits=5, random_state=42):
@@ -36,7 +38,10 @@ def aplicar_kfold(X, y, n_splits=5, random_state=42):
         # -------------------------
         # Logistic Regression
         # -------------------------
-        log_model = LogisticRegression(max_iter=1000)
+        log_model = Pipeline([
+            ("scaler", StandardScaler()),
+            ("model", LogisticRegression(max_iter=1000))
+        ])
         log_model.fit(X_train, y_train)
 
         y_pred_prob_log = log_model.predict_proba(X_test)[:, 1]
