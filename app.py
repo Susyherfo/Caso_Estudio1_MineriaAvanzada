@@ -2,6 +2,8 @@
 # imports principales
 # ==========================
 
+from turtle import color
+
 import streamlit as st
 from streamlit_option_menu import option_menu
 import plotly.express as px
@@ -25,6 +27,62 @@ st.set_page_config(
     page_icon="⚡",
     layout="wide"
 )
+
+def set_background():
+    st.markdown(
+        """
+        <style>
+        .stApp {
+            background-image: url("https://fastly.picsum.photos/id/43/1280/831.jpg?hmac=glK-rQ0ppFClW-lvjk9FqEWKog07XkOxJf6Xg_cU9LI");
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+
+        /* Fondo semi-transparente */
+        .block-container {
+            background-color: rgba(150, 150, 150, 0.1);
+            padding: 2rem;
+            border-radius: 10px;
+        }
+
+        /* Texto general */
+        html, body {
+            color: #005C99!important;
+        }
+
+        /* Títulos */
+        h1, h2, h3, h4 {
+            color: #000000 !important;
+        }
+
+        h1 {
+            font-size: 70px !important;
+        }
+
+        h2 {
+            font-size: 50px !important;
+        }
+
+        h3 {
+            font-size: 40px !important;
+        }
+
+        /* Texto normal */
+        p {
+            color: #000000 !important;
+        }
+
+        strong {
+            color: #000000 !important;}
+
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+set_background()
+
 
 
 # ==========================
@@ -61,15 +119,16 @@ df = cargar_datos()
 
 # --- pagina de inicio ---
 if selected == "Inicio":
+   
     st.title("Análisis de Consumo Eléctrico")
     st.markdown("""
-    Esta aplicación realiza un benchmarking de modelos de minería de datos
-    sobre el dataset de consumo eléctrico del hogar (UCI).
+    **Esta aplicación realiza un benchmarking de modelos de minería de datos
+    sobre el dataset de consumo eléctrico del hogar (UCI).**
     
     **Navegá por el menú lateral para explorar:**
-    - 📊 **EDA**: análisis exploratorio de los datos
-    - 🤖 **Clasificación**: comparación de modelos con AUC y curva ROC
-    - 📈 **Series de Tiempo**: benchmarking de ARIMA y Holt-Winters
+    - EDA: **análisis exploratorio de los datos**
+    - Clasificación: **comparación de modelos con AUC y curva ROC**
+    - Series de Tiempo: **benchmarking de ARIMA y Holt-Winters**
     """)
 
     st.subheader("Vista previa del dataset")
@@ -140,6 +199,11 @@ elif selected == "Series de Tiempo":
     st.title("Series de Tiempo")
 
     st.info("Entrenando modelos de series de tiempo...")
+
+    st.markdown("""
+    This section shows the comparison between the actual consumption 
+    data and the forecast values from ARIMA and Holt-Winters models.
+    """)
 
     @st.cache_data
     def entrenar_series(df):
