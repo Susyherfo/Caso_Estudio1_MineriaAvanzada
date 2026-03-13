@@ -1,273 +1,199 @@
-# ==========================
-# imports principales
-# ==========================
-
-from turtle import color
-
 import streamlit as st
-from streamlit_option_menu import option_menu
-import plotly.express as px
-import plotly.graph_objs as go
-import matplotlib.pyplot as plt
 import pandas as pd
-from sklearn.metrics import roc_curve
+import plotly.express as px
 
-from src.preprocesamiento import load_and_clean_data
-from src.clasificacion import create_binary_target, split_data, train_logistic_regression, train_random_forest
-from src.evaluacion import compute_auc
-from src.series_temporales import prepare_time_series, train_test_split_time_series, run_arima, run_holt_winters, compare_models
-from src.k_fold import aplicar_kfold
+from main import (
+    load_data,
+    run_models,
+    make_predictions,
+    cross_validation_models,
+    benchmark_timeseries
+)
 
-
-# ==========================
-# configuracion de la pagina
-# ==========================
-
+# ----------------------------------------------------
+# CONFIGURACIÓN
+# ----------------------------------------------------
 st.set_page_config(
-    page_title="Minería de Datos - Energía",
+    page_title="Análisis Energético",
     page_icon="⚡",
     layout="wide"
 )
 
-def set_background():
-    st.markdown(
-        """
-        <style>
-        .stApp {
-            background-image: url("https://fastly.picsum.photos/id/43/1280/831.jpg?hmac=glK-rQ0ppFClW-lvjk9FqEWKog07XkOxJf6Xg_cU9LI");
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
-        }
+st.title("⚡ Dashboard de Análisis Energético")
 
-        /* Fondo semi-transparente */
-        .block-container {
-            background-color: rgba(150, 150, 150, 0.1);
-            padding: 2rem;
-            border-radius: 10px;
-        }
+# ----------------------------------------------------
+# CARGAR DATOS
+# ----------------------------------------------------
+df = load_data()
 
-        /* Texto general */
-        html, body {
-            color: #005C99!important;
-        }
+# ----------------------------------------------------
+# SIDEBAR
+# ----------------------------------------------------
+st.sidebar.header("⚙️ Panel de Control")
 
-        /* Títulos */
-        h1, h2, h3, h4 {
-            color: #000000 !important;
-        }
+date_range = st.sidebar.date_input(
+    "Seleccionar rango de fechas",
+    [df["datetime"].min(), df["datetime"].max()]
+)
 
-        h1 {
-            font-size: 70px !important;
-        }
+model_selected = st.sidebar.selectbox(
+    "Modelo a visualizar",
+    ["ARIMA", "Holt-Winters", "Random Forest", "Logistic Regression"]
+)
 
-        h2 {
-            font-size: 50px !important;
-        }
+retrain = st.sidebar.button("Re-entrenar modelo")
 
-        h3 {
-            font-size: 40px !important;
-        }
+# ----------------------------------------------------
+# FILTRAR DATOS
+# ----------------------------------------------------
+df_filtered = df[
+    (df["datetime"] >= pd.to_datetime(date_range[0])) &
+    (df["datetime"] <= pd.to_datetime(date_range[1]))
+]
 
-        /* Texto normal */
-        p {
-            color: #000000 !important;
-        }
+# ----------------------------------------------------
+# TABS
+# ----------------------------------------------------
+tab1, tab2, tab3, tab4 = st.tabs([
+    "📊 Análisis Exploratorio",
+    "🤖 Modelos y Evaluación",
+    "📈 Predicciones",
+    "📌 Conclusiones"
+])
 
-        strong {
-            color: #000000 !important;}
+# ----------------------------------------------------
+# TAB 1 - EDA
+# ----------------------------------------------------
+with tab1:
 
-        </style>
-        """,
-        unsafe_allow_html=True
+    st.subheader("Resumen del dataset")
+
+    if df_filtered.empty:
+        st.warning("No hay datos en el rango seleccionado")
+
+    else:
+
+        col1, col2, col3, col4 = st.columns(4)
+
+        col1.metric(
+            "Consumo promedio",
+            f"{df_filtered['consumption'].mean():.2f}"
+        )
+
+        col2.metric(
+            "Pico máximo",
+            f"{df_filtered['consumption'].max():.2f}"
+        )
+
+        col3.metric(
+            "Total registros",
+            len(df_filtered)
+        )
+
+        col4.metric(
+            "Rango fechas",
+            f"{df_filtered['datetime'].min().date()} - {df_filtered['datetime'].max().date()}"
+        )
+
+        st.divider()
+
+        st.subheader("Serie temporal de consumo")
+
+        fig = px.line(
+            df_filtered,
+            x="datetime",
+            y="consumption",
+            title="Consumo energético en el tiempo"
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.subheader("Distribución del consumo")
+
+        fig2 = px.histogram(
+            df_filtered,
+            x="consumption",
+            nbins=50
+        )
+
+        st.plotly_chart(fig2, use_container_width=True)
+
+# ----------------------------------------------------
+# TAB 2 - MODELOS
+# ----------------------------------------------------
+with tab2:
+
+    st.subheader("Evaluación de Modelos")
+
+    if retrain:
+
+        results = run_models(df_filtered)
+
+        st.success("Modelos re-entrenados")
+
+        st.dataframe(results)
+
+    st.divider()
+
+    st.subheader("Cross Validation (K-Fold)")
+
+    cv_results = cross_validation_models(df_filtered)
+
+    st.dataframe(cv_results)
+
+    st.divider()
+
+    st.subheader("Benchmark Series Temporales")
+
+    ts_results = benchmark_timeseries(df_filtered)
+
+    st.dataframe(ts_results)
+
+    with st.expander("ℹ️ Interpretación de métricas"):
+
+        st.write("""
+        **RMSE** mide el error cuadrático medio.
+
+        **MAE** representa el error absoluto medio.
+
+        **AUC** evalúa la capacidad del modelo para distinguir clases.
+        """)
+
+# ----------------------------------------------------
+# TAB 3 - PREDICCIONES
+# ----------------------------------------------------
+with tab3:
+
+    st.subheader("Predicciones")
+
+    predictions = make_predictions(model_selected, df_filtered)
+
+    fig = px.line(
+        predictions,
+        x="datetime",
+        y=["real", "predicted"],
+        title=f"Predicciones usando {model_selected}"
     )
 
-set_background()
-
-
-
-# ==========================
-# carga de datos con cache
-# ==========================
-
-# st.cache_data evita recargar los datos cada vez que el usuario interactua con la app
-@st.cache_data
-def cargar_datos():
-    df = load_and_clean_data("data/energy.csv", sample_size=50000, preserve_time_order=True)
-    df = create_binary_target(df)
-    return df
-
-
-# ==========================
-# menu lateral
-# ==========================
-
-with st.sidebar:
-    selected = option_menu(
-        menu_title="Menú Principal",
-        options=["Inicio", "EDA", "Clasificación", "Series de Tiempo", "K-Fold Validation"],
-        icons=["house", "bar-chart", "cpu", "clock", "shuffle"],
-        menu_icon="cast",
-        default_index=0,
-    )
-
-
-# ==========================
-# paginas
-# ==========================
-
-df = cargar_datos()
-
-# --- pagina de inicio ---
-if selected == "Inicio":
-   
-    st.title("Análisis de Consumo Eléctrico")
-    st.markdown("""
-    **Esta aplicación realiza un benchmarking de modelos de minería de datos
-    sobre el dataset de consumo eléctrico del hogar (UCI).**
-    
-    **Navegá por el menú lateral para explorar:**
-    - EDA: **análisis exploratorio de los datos**
-    - Clasificación: **comparación de modelos con AUC y curva ROC**
-    - Series de Tiempo: **benchmarking de ARIMA y Holt-Winters**
-    """)
-
-    st.subheader("Vista previa del dataset")
-    st.dataframe(df.head(10))
-
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total de registros", f"{len(df):,}")
-    col2.metric("Variables", df.shape[1])
-    col3.metric("Valores nulos", df.isnull().sum().sum())
-
-
-# --- pagina de eda ---
-elif selected == "EDA":
-    st.title("Análisis Exploratorio (EDA)")
-    
-    st.subheader("Descripción estadística")
-    st.write(df.describe())
-
-    st.subheader("Histograma por variable")
-    columna = st.selectbox("Seleccioná una variable:", df.select_dtypes(include='number').columns)
-    fig = px.histogram(df, x=columna, marginal="box", title=f"Distribución de {columna}")
     st.plotly_chart(fig, use_container_width=True)
 
-    st.subheader("Mapa de correlación")
-    corr = df.select_dtypes(include='number').corr()
-    fig_corr = px.imshow(corr, color_continuous_scale="RdBu_r", zmin=-1, zmax=1, title="Heatmap de Correlación")
-    st.plotly_chart(fig_corr, use_container_width=True)
+# ----------------------------------------------------
+# TAB 4 - CONCLUSIONES
+# ----------------------------------------------------
+with tab4:
 
+    st.subheader("Conclusiones del análisis")
 
-# --- pagina de clasificacion ---
-elif selected == "Clasificación":
-    st.title("Clasificación y Benchmarking")
-
-    st.info("Entrenando modelos... esto puede tardar un momento.")
-
-    # entrenamiento con cache para no repetirlo
-    @st.cache_data
-    def entrenar_modelos(df):
-        X_train, X_test, y_train, y_test = split_data(df)
-        log_model = train_logistic_regression(X_train, y_train)
-        rf_model = train_random_forest(X_train, y_train)
-        log_auc, log_prob = compute_auc(log_model, X_test, y_test)
-        rf_auc, rf_prob = compute_auc(rf_model, X_test, y_test)
-        return X_test, y_test, log_auc, log_prob, rf_auc, rf_prob
-
-    X_test, y_test, log_auc, log_prob, rf_auc, rf_prob = entrenar_modelos(df)
-
-    # metricas en columnas
-    col1, col2 = st.columns(2)
-    col1.metric("AUC - Logistic Regression", f"{log_auc:.4f}")
-    col2.metric("AUC - Random Forest", f"{rf_auc:.4f}")
-
-    # curva roc con plotly
-    st.subheader("Curva ROC")
-    fpr_log, tpr_log, _ = roc_curve(y_test, log_prob)
-    fpr_rf, tpr_rf, _ = roc_curve(y_test, rf_prob)
-
-    fig_roc = go.Figure()
-    fig_roc.add_trace(go.Scatter(x=fpr_log, y=tpr_log, name=f"Logistic (AUC={log_auc:.4f})"))
-    fig_roc.add_trace(go.Scatter(x=fpr_rf, y=tpr_rf, name=f"Random Forest (AUC={rf_auc:.4f})"))
-    fig_roc.add_trace(go.Scatter(x=[0,1], y=[0,1], mode='lines', line=dict(dash='dash'), name="Baseline"))
-    fig_roc.update_layout(xaxis_title="False Positive Rate", yaxis_title="True Positive Rate", title="Curva ROC")
-    st.plotly_chart(fig_roc, use_container_width=True)
-
-
-# --- pagina de series de tiempo ---
-elif selected == "Series de Tiempo":
-    st.title("Series de Tiempo")
-
-    st.info("Entrenando modelos de series de tiempo...")
-
-    st.markdown("""
-    This section shows the comparison between the actual consumption 
-    data and the forecast values from ARIMA and Holt-Winters models.
+    st.write("""
+    - Los modelos permiten identificar patrones de consumo energético.
+    - ARIMA mostró buen desempeño en series temporales.
+    - Random Forest captura relaciones no lineales en los datos.
     """)
 
-    @st.cache_data
-    def entrenar_series(df):
-        series = prepare_time_series(df)
-        train_ts, test_ts = train_test_split_time_series(series)
-        _, arima_forecast, arima_rmse, arima_mae = run_arima(train_ts, test_ts)
-        _, hw_forecast, hw_rmse, hw_mae = run_holt_winters(train_ts, test_ts)
-        return train_ts, test_ts, arima_forecast, arima_rmse, arima_mae, hw_forecast, hw_rmse, hw_mae
+    with st.expander("Cómo usar la aplicación"):
 
-    train_ts, test_ts, arima_forecast, arima_rmse, arima_mae, hw_forecast, hw_rmse, hw_mae = entrenar_series(df)
-
-    # comparacion de metricas
-    col1, col2 = st.columns(2)
-    with col1:
-        st.subheader("ARIMA")
-        st.metric("RMSE", f"{arima_rmse:.4f}")
-        st.metric("MAE", f"{arima_mae:.4f}")
-    with col2:
-        st.subheader("Holt-Winters")
-        st.metric("RMSE", f"{hw_rmse:.4f}")
-        st.metric("MAE", f"{hw_mae:.4f}")
-
-    decision = compare_models((arima_rmse, arima_mae), (hw_rmse, hw_mae))
-    st.success(decision)
-
-    # grafico de forecasts
-    st.subheader("Comparación de Pronósticos")
-    fig_ts = go.Figure()
-    fig_ts.add_trace(go.Scatter(y=test_ts.values, name="Real"))
-    fig_ts.add_trace(go.Scatter(y=arima_forecast, name="ARIMA"))
-    fig_ts.add_trace(go.Scatter(y=hw_forecast, name="Holt-Winters"))
-    fig_ts.update_layout(title="Forecast vs Real", xaxis_title="Tiempo", yaxis_title="Consumo")
-    st.plotly_chart(fig_ts, use_container_width=True)
-
-# --- pagina de k-fold validation ---
-elif selected == "K-Fold Validation":
-
-    st.title("K-Fold Cross Validation")
-    st.info("Applying Stratified K-Fold validation...")
-
-    from src.k_fold import aplicar_kfold
-    from src.clasificacion import preparar_features
-
-    # Obtener X e y correctamente
-    X, y = preparar_features(df)
-
-    log_auc_mean, log_auc_std, rf_auc_mean, rf_auc_std = aplicar_kfold(X, y)
-
-    col1, col2 = st.columns(2)
-
-    col1.metric(
-        "Logistic Regression AUC (mean)",
-        f"{log_auc_mean:.4f}",
-        f"± {log_auc_std:.4f}"
-    )
-
-    col2.metric(
-        "Random Forest AUC (mean)",
-        f"{rf_auc_mean:.4f}",
-        f"± {rf_auc_std:.4f}"
-    )
-
-    st.markdown("""
-    This validation technique reduces overfitting risk and provides
-    a more robust estimate of model performance.
-    """)
+        st.write("""
+        1. Seleccione un rango de fechas en el panel lateral.
+        2. Elija el modelo a visualizar.
+        3. Explore resultados y predicciones.
+        """)

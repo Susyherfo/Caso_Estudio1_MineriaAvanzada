@@ -1,123 +1,287 @@
-# ==========================
-# IMPORTS
-# ==========================
+import pandas as pd
+import numpy as np
 
-import matplotlib.pyplot as plt
-from sklearn.metrics import roc_curve
+from sklearn.model_selection import train_test_split
+from sklearn.model_selection import cross_val_score, KFold
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import roc_auc_score, roc_curve
 
-from src.preprocesamiento import load_and_clean_data
+from statsmodels.tsa.arima.model import ARIMA
+from statsmodels.tsa.holtwinters import ExponentialSmoothing
 
-from src.clasificacion import (
-    create_binary_target,
-    split_data,
-    train_logistic_regression,
-    train_random_forest
-)
-
-from src.evaluacion import compute_auc
-
-from src.series_temporales import (
-    prepare_time_series,
-    train_test_split_time_series,
-    run_arima,
-    run_holt_winters,
-    compare_models
-)
+from sklearn.metrics import mean_squared_error, mean_absolute_error
 
 
-# ==========================
-# MAIN
-# ==========================
+# -----------------------------------------------------
+# CARGA DE DATOS
+# -----------------------------------------------------
+def load_data():
 
-def main():
-
-    # -----------------------------
-    # CARGA Y PREPROCESAMIENTO
-    # -----------------------------
-
-    df = load_and_clean_data(
+    df = pd.read_csv(
         "data/energy.csv",
-        sample_size=50000,
-        preserve_time_order=True
+        sep=";",
+        na_values="?"
     )
 
-    df = create_binary_target(df)
-
-    # -----------------------------
-    # CLASIFICACION
-    # -----------------------------
-
-    X_train, X_test, y_train, y_test = split_data(df)
-
-    log_model = train_logistic_regression(X_train, y_train)
-    rf_model = train_random_forest(X_train, y_train)
-
-    log_auc, log_prob = compute_auc(log_model, X_test, y_test)
-    rf_auc, rf_prob = compute_auc(rf_model, X_test, y_test)
-
-    print(f"\nLogistic Regression AUC: {log_auc:.4f}")
-    print(f"Random Forest AUC: {rf_auc:.4f}")
-
-    # -----------------------------
-    # CURVA ROC
-    # -----------------------------
-
-    fpr_log, tpr_log, _ = roc_curve(y_test, log_prob)
-    fpr_rf, tpr_rf, _ = roc_curve(y_test, rf_prob)
-
-    plt.figure()
-    plt.plot(fpr_log, tpr_log, label=f"Logistic AUC = {log_auc:.4f}")
-    plt.plot(fpr_rf, tpr_rf, label=f"Random Forest AUC = {rf_auc:.4f}")
-    plt.plot([0, 1], [0, 1], linestyle="--")
-    plt.xlabel("False Positive Rate")
-    plt.ylabel("True Positive Rate")
-    plt.title("Comparacion Curva ROC")
-    plt.legend()
-    plt.show()
-
-    # -----------------------------
-    # SERIES DE TIEMPO
-    # -----------------------------
-
-    print("\nIniciando modelos de series de tiempo...")
-
-    series = prepare_time_series(df)
-    train_ts, test_ts = train_test_split_time_series(series)
-
-    # ARIMA
-    arima_model, arima_forecast, arima_rmse, arima_mae = run_arima(
-        train_ts,
-        test_ts
+    df["datetime"] = pd.to_datetime(
+        df["Date"] + " " + df["Time"],
+        format="%d/%m/%Y %H:%M:%S"
     )
 
-    # HOLT-WINTERS
-    hw_model, hw_forecast, hw_rmse, hw_mae = run_holt_winters(
-        train_ts,
-        test_ts
+    numeric_cols = [
+        "Global_active_power",
+        "Global_reactive_power",
+        "Voltage",
+        "Global_intensity",
+        "Sub_metering_1",
+        "Sub_metering_2",
+        "Sub_metering_3"
+    ]
+
+    df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, errors="coerce")
+
+    df = df.dropna()
+
+    df["consumption"] = df["Global_active_power"]
+
+    threshold = df["consumption"].quantile(0.75)
+    df["high_consumption"] = (df["consumption"] > threshold).astype(int)
+
+    df = df.sort_values("datetime")
+
+    return df
+
+
+# -----------------------------------------------------
+# ENTRENAMIENTO MODELOS CLASIFICACIÓN
+# -----------------------------------------------------
+def train_classification_models(df):
+
+    features = [
+        "Voltage",
+        "Global_intensity",
+        "Sub_metering_1",
+        "Sub_metering_2",
+        "Sub_metering_3"
+    ]
+
+    X = df[features]
+    y = df["high_consumption"]
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y,
+        test_size=0.2,
+        random_state=42
     )
 
-    print("\n--- RESULTADOS SERIES DE TIEMPO ---")
+    results = []
 
-    print("\nARIMA")
-    print(f"RMSE: {arima_rmse:.4f}")
-    print(f"MAE: {arima_mae:.4f}")
+    # Logistic Regression
+    lr = LogisticRegression(max_iter=1000)
+    lr.fit(X_train, y_train)
 
-    print("\nHOLT-WINTERS")
-    print(f"RMSE: {hw_rmse:.4f}")
-    print(f"MAE: {hw_mae:.4f}")
+    lr_probs = lr.predict_proba(X_test)[:, 1]
+    lr_auc = roc_auc_score(y_test, lr_probs)
 
-    # Comparacion
-    decision = compare_models(
-        (arima_rmse, arima_mae),
-        (hw_rmse, hw_mae)
+    results.append({
+        "Model": "Logistic Regression",
+        "AUC": lr_auc
+    })
+
+    # Random Forest
+    rf = RandomForestClassifier(
+        n_estimators=200,
+        random_state=42
     )
 
-    print(f"\n{decision}")
+    rf.fit(X_train, y_train)
+
+    rf_probs = rf.predict_proba(X_test)[:, 1]
+    rf_auc = roc_auc_score(y_test, rf_probs)
+
+    results.append({
+        "Model": "Random Forest",
+        "AUC": rf_auc
+    })
+
+    results_df = pd.DataFrame(results)
+
+    return results_df, rf, X_test, y_test
 
 
-# ==========================
-# ENTRY POINT
-# ==========================
+# -----------------------------------------------------
+# BENCHMARK MODELOS
+# -----------------------------------------------------
+def run_models(df):
 
-if __name__ == "__main__":
-    main()
+    results_df, _, _, _ = train_classification_models(df)
+
+    return results_df
+
+
+# -----------------------------------------------------
+# CROSS VALIDATION
+# -----------------------------------------------------
+def cross_validation_models(df):
+
+    features = [
+        "Voltage",
+        "Global_intensity",
+        "Sub_metering_1",
+        "Sub_metering_2",
+        "Sub_metering_3"
+    ]
+
+    X = df[features]
+    y = df["high_consumption"]
+
+    kfold = KFold(
+        n_splits=5,
+        shuffle=True,
+        random_state=42
+    )
+
+    lr = LogisticRegression(max_iter=1000)
+    rf = RandomForestClassifier(
+        n_estimators=200,
+        random_state=42
+    )
+
+    lr_scores = cross_val_score(
+        lr, X, y,
+        cv=kfold,
+        scoring="roc_auc"
+    )
+
+    rf_scores = cross_val_score(
+        rf, X, y,
+        cv=kfold,
+        scoring="roc_auc"
+    )
+
+    results = pd.DataFrame({
+        "Model": ["Logistic Regression", "Random Forest"],
+        "Mean AUC": [lr_scores.mean(), rf_scores.mean()],
+        "Std AUC": [lr_scores.std(), rf_scores.std()]
+    })
+
+    return results
+
+
+# -----------------------------------------------------
+# ROC CURVE
+# -----------------------------------------------------
+def generate_roc_curve(df):
+
+    _, model, X_test, y_test = train_classification_models(df)
+
+    probs = model.predict_proba(X_test)[:, 1]
+
+    fpr, tpr, thresholds = roc_curve(y_test, probs)
+
+    roc_data = pd.DataFrame({
+        "fpr": fpr,
+        "tpr": tpr
+    })
+
+    return roc_data
+
+
+# -----------------------------------------------------
+# SERIES TEMPORALES
+# -----------------------------------------------------
+def prepare_time_series(df):
+
+    ts = df.set_index("datetime")["consumption"]
+
+    ts = ts.resample("D").mean()
+
+    ts = ts.dropna()
+
+    return ts
+
+
+def train_arima(ts):
+
+    model = ARIMA(ts, order=(2, 1, 2))
+
+    fitted = model.fit()
+
+    forecast = fitted.forecast(30)
+
+    return forecast
+
+
+def train_holt_winters(ts):
+
+    model = ExponentialSmoothing(
+        ts,
+        trend="add"
+    )
+
+    fitted = model.fit()
+
+    forecast = fitted.forecast(30)
+
+    return forecast
+
+
+# -----------------------------------------------------
+# BENCHMARK SERIES TEMPORALES
+# -----------------------------------------------------
+def benchmark_timeseries(df):
+
+    ts = prepare_time_series(df)
+
+    train = ts[:-30]
+    test = ts[-30:]
+
+    arima_model = ARIMA(train, order=(2, 1, 2)).fit()
+    arima_pred = arima_model.forecast(30)
+
+    hw_model = ExponentialSmoothing(train, trend="add").fit()
+    hw_pred = hw_model.forecast(30)
+
+    arima_rmse = np.sqrt(mean_squared_error(test, arima_pred))
+    hw_rmse = np.sqrt(mean_squared_error(test, hw_pred))
+
+    arima_mae = mean_absolute_error(test, arima_pred)
+    hw_mae = mean_absolute_error(test, hw_pred)
+
+    results = pd.DataFrame({
+        "Model": ["ARIMA", "Holt-Winters"],
+        "RMSE": [arima_rmse, hw_rmse],
+        "MAE": [arima_mae, hw_mae]
+    })
+
+    return results
+
+
+# -----------------------------------------------------
+# GENERAR PREDICCIONES
+# -----------------------------------------------------
+def make_predictions(model_name, df):
+
+    ts = prepare_time_series(df)
+
+    if model_name == "ARIMA":
+
+        forecast = train_arima(ts)
+
+    elif model_name == "Holt-Winters":
+
+        forecast = train_holt_winters(ts)
+
+    else:
+
+        forecast = ts.rolling(5).mean().dropna()
+
+    predictions = pd.DataFrame({
+        "datetime": ts.index,
+        "real": ts.values
+    })
+
+    predictions["predicted"] = predictions["real"].rolling(5).mean()
+
+    return predictions
