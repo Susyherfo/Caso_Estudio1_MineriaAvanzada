@@ -1,199 +1,120 @@
 import streamlit as st
-import pandas as pd
-import plotly.express as px
+import matplotlib.pyplot as plt
 
-from main import (
-    load_data,
-    run_models,
-    make_predictions,
-    cross_validation_models,
-    benchmark_timeseries
+from src.preprocesamiento import load_and_clean_data
+from src.clasificacion import split_data, train_logistic_regression, train_random_forest
+from src.k_fold import aplicar_kfold
+from src.series_temporales import (
+    prepare_time_series,
+    train_test_split_time_series,
+    run_arima,
+    run_holt_winters,
 )
 
-# ----------------------------------------------------
-# CONFIGURACIÓN
-# ----------------------------------------------------
-st.set_page_config(
-    page_title="Análisis Energético",
-    page_icon="⚡",
-    layout="wide"
+st.set_page_config(page_title="Energy Consumption Analysis", layout="wide")
+
+st.title("Household Energy Consumption Analysis")
+
+df = load_and_clean_data()
+
+menu = st.sidebar.selectbox(
+    "Navigation",
+    [
+        "Dataset Overview",
+        "Classification",
+        "K-Fold Validation",
+        "Time Series Forecasting",
+    ],
 )
 
-st.title("⚡ Dashboard de Análisis Energético")
+# ------------------------------------------------
+# DATASET
+# ------------------------------------------------
 
-# ----------------------------------------------------
-# CARGAR DATOS
-# ----------------------------------------------------
-df = load_data()
+if menu == "Dataset Overview":
 
-# ----------------------------------------------------
-# SIDEBAR
-# ----------------------------------------------------
-st.sidebar.header("⚙️ Panel de Control")
+    st.header("Dataset Overview")
 
-date_range = st.sidebar.date_input(
-    "Seleccionar rango de fechas",
-    [df["datetime"].min(), df["datetime"].max()]
-)
+    st.write(df.head())
+    st.write("Shape:", df.shape)
 
-model_selected = st.sidebar.selectbox(
-    "Modelo a visualizar",
-    ["ARIMA", "Holt-Winters", "Random Forest", "Logistic Regression"]
-)
+# ------------------------------------------------
+# CLASIFICACION
+# ------------------------------------------------
 
-retrain = st.sidebar.button("Re-entrenar modelo")
+elif menu == "Classification":
 
-# ----------------------------------------------------
-# FILTRAR DATOS
-# ----------------------------------------------------
-df_filtered = df[
-    (df["datetime"] >= pd.to_datetime(date_range[0])) &
-    (df["datetime"] <= pd.to_datetime(date_range[1]))
-]
+    st.header("Classification Models")
 
-# ----------------------------------------------------
-# TABS
-# ----------------------------------------------------
-tab1, tab2, tab3, tab4 = st.tabs([
-    "📊 Análisis Exploratorio",
-    "🤖 Modelos y Evaluación",
-    "📈 Predicciones",
-    "📌 Conclusiones"
-])
+    X_train, X_test, y_train, y_test = split_data(df)
 
-# ----------------------------------------------------
-# TAB 1 - EDA
-# ----------------------------------------------------
-with tab1:
+    log_model = train_logistic_regression(X_train, y_train)
+    rf_model = train_random_forest(X_train, y_train)
 
-    st.subheader("Resumen del dataset")
+    log_auc = log_model.score(X_test, y_test)
+    rf_auc = rf_model.score(X_test, y_test)
 
-    if df_filtered.empty:
-        st.warning("No hay datos en el rango seleccionado")
+    col1, col2 = st.columns(2)
 
-    else:
+    col1.metric("Logistic Regression Accuracy", f"{log_auc:.3f}")
+    col2.metric("Random Forest Accuracy", f"{rf_auc:.3f}")
 
-        col1, col2, col3, col4 = st.columns(4)
+# ------------------------------------------------
+# K-FOLD
+# ------------------------------------------------
 
-        col1.metric(
-            "Consumo promedio",
-            f"{df_filtered['consumption'].mean():.2f}"
-        )
+elif menu == "K-Fold Validation":
 
-        col2.metric(
-            "Pico máximo",
-            f"{df_filtered['consumption'].max():.2f}"
-        )
+    st.header("K-Fold Cross Validation")
 
-        col3.metric(
-            "Total registros",
-            len(df_filtered)
-        )
+    X_train, X_test, y_train, y_test = split_data(df)
 
-        col4.metric(
-            "Rango fechas",
-            f"{df_filtered['datetime'].min().date()} - {df_filtered['datetime'].max().date()}"
-        )
+    X = X_train.append(X_test)
+    y = y_train.append(y_test)
 
-        st.divider()
+    log_auc_mean, log_auc_std, rf_auc_mean, rf_auc_std = aplicar_kfold(X, y)
 
-        st.subheader("Serie temporal de consumo")
+    col1, col2 = st.columns(2)
 
-        fig = px.line(
-            df_filtered,
-            x="datetime",
-            y="consumption",
-            title="Consumo energético en el tiempo"
-        )
-
-        st.plotly_chart(fig, use_container_width=True)
-
-        st.subheader("Distribución del consumo")
-
-        fig2 = px.histogram(
-            df_filtered,
-            x="consumption",
-            nbins=50
-        )
-
-        st.plotly_chart(fig2, use_container_width=True)
-
-# ----------------------------------------------------
-# TAB 2 - MODELOS
-# ----------------------------------------------------
-with tab2:
-
-    st.subheader("Evaluación de Modelos")
-
-    if retrain:
-
-        results = run_models(df_filtered)
-
-        st.success("Modelos re-entrenados")
-
-        st.dataframe(results)
-
-    st.divider()
-
-    st.subheader("Cross Validation (K-Fold)")
-
-    cv_results = cross_validation_models(df_filtered)
-
-    st.dataframe(cv_results)
-
-    st.divider()
-
-    st.subheader("Benchmark Series Temporales")
-
-    ts_results = benchmark_timeseries(df_filtered)
-
-    st.dataframe(ts_results)
-
-    with st.expander("ℹ️ Interpretación de métricas"):
-
-        st.write("""
-        **RMSE** mide el error cuadrático medio.
-
-        **MAE** representa el error absoluto medio.
-
-        **AUC** evalúa la capacidad del modelo para distinguir clases.
-        """)
-
-# ----------------------------------------------------
-# TAB 3 - PREDICCIONES
-# ----------------------------------------------------
-with tab3:
-
-    st.subheader("Predicciones")
-
-    predictions = make_predictions(model_selected, df_filtered)
-
-    fig = px.line(
-        predictions,
-        x="datetime",
-        y=["real", "predicted"],
-        title=f"Predicciones usando {model_selected}"
+    col1.metric(
+        "Logistic Regression AUC (mean)",
+        f"{log_auc_mean:.3f}",
+        f"± {log_auc_std:.3f}",
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    col2.metric(
+        "Random Forest AUC (mean)",
+        f"{rf_auc_mean:.3f}",
+        f"± {rf_auc_std:.3f}",
+    )
 
-# ----------------------------------------------------
-# TAB 4 - CONCLUSIONES
-# ----------------------------------------------------
-with tab4:
+# ------------------------------------------------
+# SERIES TEMPORALES
+# ------------------------------------------------
 
-    st.subheader("Conclusiones del análisis")
+elif menu == "Time Series Forecasting":
 
-    st.write("""
-    - Los modelos permiten identificar patrones de consumo energético.
-    - ARIMA mostró buen desempeño en series temporales.
-    - Random Forest captura relaciones no lineales en los datos.
-    """)
+    st.header("Time Series Forecasting")
 
-    with st.expander("Cómo usar la aplicación"):
+    series = prepare_time_series(df)
 
-        st.write("""
-        1. Seleccione un rango de fechas en el panel lateral.
-        2. Elija el modelo a visualizar.
-        3. Explore resultados y predicciones.
-        """)
+    train, test = train_test_split_time_series(series)
+
+    arima_model, arima_forecast, arima_rmse, arima_mae = run_arima(train, test)
+
+    hw_model, hw_forecast, hw_rmse, hw_mae = run_holt_winters(train, test)
+
+    col1, col2 = st.columns(2)
+
+    col1.metric("ARIMA RMSE", f"{arima_rmse:.3f}")
+    col2.metric("Holt-Winters RMSE", f"{hw_rmse:.3f}")
+
+    fig, ax = plt.subplots()
+
+    ax.plot(train, label="Train")
+    ax.plot(test, label="Test")
+    ax.plot(test.index, arima_forecast, label="ARIMA Forecast")
+
+    ax.legend()
+
+    st.pyplot(fig)
