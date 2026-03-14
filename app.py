@@ -15,7 +15,7 @@ st.set_page_config(page_title="Energy Consumption Analysis", layout="wide")
 
 st.title("Household Energy Consumption Analysis")
 
-df = load_and_clean_data()
+df = load_and_clean_data("data/energy.csv")
 
 menu = st.sidebar.selectbox(
     "Navigation",
