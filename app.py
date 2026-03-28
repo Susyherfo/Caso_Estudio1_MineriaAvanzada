@@ -1,8 +1,10 @@
+import requests
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.express as px
+import numpy as np
 
 from sklearn.metrics import roc_curve, auc
 
@@ -15,9 +17,9 @@ from src.series_temporales import (
     run_arima,
     run_holt_winters
 )
-
+from src.data_api import cargar_datos_eia
 # NUEVO
-from src.Hiperparametrizacion import ModelEvaluator
+from src.hiperparametrizacion import ModelEvaluator
 from sklearn.metrics import r2_score, mean_squared_error
 
 # ------------------------------------------------
@@ -33,14 +35,70 @@ st.title("⚡ Household Energy Consumption Analysis")
 
 st.sidebar.markdown("---")
 st.sidebar.write("Minería de Datos Avanzada")
-st.sidebar.write("Caso de Estudio 1")
+st.sidebar.write("Estudio Consumo de Energia")
 st.sidebar.write("Susana Herrera & Kendra Gutierrez")
+
+st.sidebar.title("Fuente de Datos")
+
+fuente = st.sidebar.selectbox(
+    "Seleccionar fuente",
+    ["Dataset Local", "Dataset + EIA API"]
+)
+
+api_key = st.sidebar.text_input(
+    "EIA API Key",
+    type="password"
+)
 
 # ------------------------------------------------
 # CARGA DE DATOS
 # ------------------------------------------------
 
-df = load_and_clean_data("data/energy.csv")
+if fuente == "Dataset Local":
+
+    df = pd.read_csv("data/energy.csv", sep=";")
+
+    df["period"] = pd.to_datetime(
+        df["Date"] + " " + df["Time"],
+        format="%d/%m/%Y %H:%M:%S",
+        errors="coerce"
+    )
+
+    df = df.dropna(subset=["period"])
+
+else:
+
+    if not api_key:
+        st.warning("Ingrese API Key de EIA")
+        st.stop()
+
+    df = pd.read_csv("data/energy.csv", sep=";")
+
+    df["period"] = pd.to_datetime(
+        df["Date"] + " " + df["Time"],
+        format="%d/%m/%Y %H:%M:%S",
+        errors="coerce"
+    )
+
+    df = df.dropna(subset=["period"])
+
+    df_eia = cargar_datos_eia(api_key)
+
+    if df_eia is None:
+        st.error("No se pudieron cargar datos EIA")
+        st.stop()
+
+    df = pd.merge(df, df_eia, on="period", how="left")
+
+    df["eia_demand"] = df["eia_demand"].ffill()
+# ------------------------------------------------
+# FEATURES TEMPORALES
+# ------------------------------------------------
+
+df["hour"] = df["period"].dt.hour
+df["day"] = df["period"].dt.day
+df["month"] = df["period"].dt.month
+df["weekday"] = df["period"].dt.weekday
 
 # ------------------------------------------------
 # MENU
@@ -54,7 +112,7 @@ menu = st.sidebar.selectbox(
         "Classification Models",
         "K-Fold Validation",
         "Time Series Forecasting",
-        "Hiperparametrizacion"   # ← se agregó la coma arriba
+        "Hiperparametrizacion"   
     ],
 )
 
@@ -304,7 +362,7 @@ elif menu == "Hiperparametrizacion":
             y_pred = model.predict(X_test)
 
             r2 = r2_score(y_test, y_pred)
-            rmse = mean_squared_error(y_test, y_pred, squared=False)
+            rmse = np.sqrt(mean_squared_error(y_test, y_pred))
 
             col1, col2 = st.columns(2)
 

@@ -154,4 +154,3 @@ def evaluate_with_threshold(model, X_test, y_test, threshold=0.5):
     report = classification_report(y_test, y_pred_custom)
 
     return y_prob, y_pred_custom, cm, report
-

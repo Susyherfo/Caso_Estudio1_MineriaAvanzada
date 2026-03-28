@@ -12,3 +12,4 @@ joblib
 scipy
 deap
 threadpoolctl
+requests
