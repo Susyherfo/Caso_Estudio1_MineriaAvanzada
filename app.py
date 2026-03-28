@@ -16,6 +16,10 @@ from src.series_temporales import (
     run_holt_winters
 )
 
+# NUEVO
+from src.Hiperparametrizacion import ModelEvaluator
+from sklearn.metrics import r2_score, mean_squared_error
+
 # ------------------------------------------------
 # CONFIGURACION STREAMLIT
 # ------------------------------------------------
@@ -30,7 +34,7 @@ st.title("⚡ Household Energy Consumption Analysis")
 st.sidebar.markdown("---")
 st.sidebar.write("Minería de Datos Avanzada")
 st.sidebar.write("Caso de Estudio 1")
-st.sidebar.write("Susana Herrera Fonseca & Kendra Gutierrez")
+st.sidebar.write("Susana Herrera & Kendra Gutierrez")
 
 # ------------------------------------------------
 # CARGA DE DATOS
@@ -49,7 +53,8 @@ menu = st.sidebar.selectbox(
         "Data Visualization",
         "Classification Models",
         "K-Fold Validation",
-        "Time Series Forecasting"
+        "Time Series Forecasting",
+        "Hiperparametrizacion"   # ← se agregó la coma arriba
     ],
 )
 
@@ -107,10 +112,6 @@ elif menu == "Data Visualization":
 
     st.pyplot(fig)
 
-    # ------------------------------------------------
-    # HEATMAP CORRELACION
-    # ------------------------------------------------
-
     st.subheader("Correlation Matrix")
 
     corr = df[numeric_columns].corr()
@@ -124,10 +125,6 @@ elif menu == "Data Visualization":
     )
 
     st.pyplot(fig_corr)
-
-    # ------------------------------------------------
-    # GRAFICO INTERACTIVO
-    # ------------------------------------------------
 
     st.subheader("Interactive Time Series")
 
@@ -167,10 +164,6 @@ elif menu == "Classification Models":
         "Random Forest Accuracy",
         f"{rf_score:.3f}"
     )
-
-    # ------------------------------------------------
-    # ROC CURVE
-    # ------------------------------------------------
 
     st.subheader("ROC Curve")
 
@@ -280,3 +273,40 @@ elif menu == "Time Series Forecasting":
     ax_forecast.legend()
 
     st.pyplot(fig_forecast)
+
+# ------------------------------------------------
+# HIPERPARAMETRIZACION
+# ------------------------------------------------
+
+elif menu == "Hiperparametrizacion":
+
+    st.header("Model Hyperparameter Tuning")
+
+    X_train, X_test, y_train, y_test = split_data(df)
+
+    if st.button("Run Hyperparameter Optimization"):
+
+        evaluator = ModelEvaluator(X_train, X_test, y_train, y_test)
+
+        with st.spinner("Running Genetic Search..."):
+            genetic_results = evaluator.genetic_search()
+
+        st.subheader("Best Parameters (Genetic)")
+
+        for name, res in genetic_results.items():
+            st.write(f"**{name}**")
+            st.json(res['best_params'])
+
+        st.subheader("Model Performance")
+
+        for name, res in genetic_results.items():
+            model = res['estimator']
+            y_pred = model.predict(X_test)
+
+            r2 = r2_score(y_test, y_pred)
+            rmse = mean_squared_error(y_test, y_pred, squared=False)
+
+            col1, col2 = st.columns(2)
+
+            col1.metric(f"{name} R2", f"{r2:.4f}")
+            col2.metric(f"{name} RMSE", f"{rmse:.4f}")

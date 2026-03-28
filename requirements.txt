@@ -6,3 +6,9 @@ seaborn
 plotly
 scikit-learn
 statsmodels
+xgboost
+sklearn-genetic-opt
+joblib
+scipy
+deap
+threadpoolctl
