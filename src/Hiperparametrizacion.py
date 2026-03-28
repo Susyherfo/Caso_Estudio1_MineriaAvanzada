@@ -147,6 +147,14 @@ class ModelEvaluator:
               ('clf', model), 
             ])            
             print(f"Entrenando {name} con método genético...")
+
+            from deap import creator 
+
+            if hasattr(creator, "FitnessMax"):
+                del creator.FitnessMax
+            if hasattr(creator, "Individual"):
+                del creator.Individual
+                
             evolved_estimator = GASearchCV(
                 estimator=pl,
                 cv=3,

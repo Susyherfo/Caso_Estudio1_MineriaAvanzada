@@ -48,30 +48,50 @@ def preparar_features(df):
     df = df.copy()
     df.columns = df.columns.str.lower()
 
-    # Crear variable objetivo
-    threshold = df['global_active_power'].mean()
-    df['high_consumption'] = (
-        df['global_active_power'] > threshold
-    ).astype(int)
+    # usar columna period si existe
+    if "period" in df.columns:
+        df["period"] = pd.to_datetime(df["period"])
+        df = df.set_index("period")
 
-    # Asegurar índice datetime
-    df.index = pd.to_datetime(df.index)
+    # variable objetivo solo si existe consumo
+    if "global_active_power" in df.columns:
 
-    # Feature engineering
+        threshold = df['global_active_power'].mean()
+        df['high_consumption'] = (
+            df['global_active_power'] > threshold
+        ).astype(int)
+
+        features = [
+            'voltage',
+            'global_intensity',
+            'sub_metering_1',
+            'sub_metering_2',
+            'sub_metering_3'
+        ]
+
+    else:
+        # caso API clima
+        threshold = df['temperature'].mean()
+        df['high_consumption'] = (
+            df['temperature'] > threshold
+        ).astype(int)
+
+        features = [
+            'temperature',
+            'humidity',
+            'wind_speed'
+        ]
+
+    # Feature engineering temporal
     df["hour"] = df.index.hour
     df["day_of_week"] = df.index.dayofweek
     df["month"] = df.index.month
 
-    features = [
-        'voltage',
-        'global_intensity',
-        'sub_metering_1',
-        'sub_metering_2',
-        'sub_metering_3',
+    features.extend([
         'hour',
         'day_of_week',
         'month'
-    ]
+    ])
 
     X = df[features]
     y = df['high_consumption']
