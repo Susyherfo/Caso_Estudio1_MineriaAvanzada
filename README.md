@@ -303,3 +303,14 @@ Variables: Global Active Power, Voltage, Global Intensity, Sub Metering 1/2/3
 |-------|------|-------------|
 | Conceptos: Web Mining, Redes Neuronales, Reglas de Asociación | 30% | ✓ |
 | Implementación integrada en un solo caso práctico | 70% | ✓ |
+
+## Mejoras del modelo (Caso 2) 11/04/2026
+
+- Eliminación de data leakage (global_intensity)
+- Encoding cíclico de variables temporales
+- Ingeniería de features físicas:
+  - unmetered_power
+  - power_factor
+  - reactive_ratio
+- Transformaciones para reducir skew
+- Mejora en accuracy: 0.996 → 0.998+

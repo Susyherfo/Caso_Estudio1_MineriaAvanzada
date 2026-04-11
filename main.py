@@ -14,7 +14,7 @@ from src.series_temporales import (
 )
 
 # Agregar importaciones para hiperparametrización 
-from src.Hiperparametrizacion import ModelEvaluator
+from src.hiperparametrizacion import ModelEvaluator
 from sklearn.metrics import r2_score, mean_squared_error
 import joblib
 
