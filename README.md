@@ -1,5 +1,7 @@
 # Caso de Estudio – Minería de Datos Avanzada
 
+# Caso de Estudio 1
+
 ## Modelado Predictivo y Análisis de Series Temporales en Datos de Consumo Energético
 
 Proyecto desarrollado para el curso **BCD-7213 – Minería de Datos Avanzada** en **LEAD University**.
@@ -188,4 +190,116 @@ BCD-7213 – Minería de Datos Avanzada
 LEAD University
 
 
-# 📂 Estructura del Proyecto
+# Caso de Estudio #2 – Minería de Datos Avanzada
+
+## Web Mining, Redes Neuronales y Reglas de Asociación aplicadas al Consumo Energético
+
+
+## Descripción
+
+Caso de estudio integrado que aplica tres técnicas de minería de datos avanzada
+sobre el dataset **Individual Household Electric Power Consumption**:
+
+| Módulo | Técnica | Aplicación |
+|--------|---------|------------|
+| Web Mining | Content / Structure / Usage | Análisis de páginas IEA/EIA + API demanda eléctrica |
+| Redes Neuronales | MLP, LSTM, CNN1D, Autoencoder, Regresión | Clasificación, predicción y detección de anomalías |
+| Reglas de Asociación | FP-Growth (mlxtend) | Patrones de co-ocurrencia en consumo discretizado |
+
+---
+
+## Estructura del proyecto
+
+```
+caso_estudio_energia/
+├── data/
+│   └── energy.csv
+├── src/
+│   ├── preprocesamiento.py       # Carga y limpieza del dataset
+│   ├── clasificacion.py          # Modelos de clasificación clásica
+│   ├── k_fold.py                 # Validación cruzada estratificada
+│   ├── series_temporales.py      # ARIMA y Holt-Winters
+│   ├── hiperparametrizacion.py   # Búsqueda genética y Grid Search
+│   ├── redes_neuronales.py       # 5 arquitecturas de redes neuronales  ← NUEVO
+│   ├── reglas_asociacion.py      # FP-Growth sobre consumo energético   ← NUEVO
+│   ├── web_mining.py             # Content, Structure y Usage Mining    ← NUEVO
+│   └── data_api.py               # Conector API EIA
+├── app.py                        # Dashboard Streamlit integrado
+├── main.py                       # Pipeline CLI
+├── requirements.txt
+└── README.md
+```
+
+---
+
+## Módulos nuevos (Caso de Estudio #2)
+
+### 1. Web Mining (`src/web_mining.py`)
+
+Tres subáreas implementadas:
+
+**Content Mining**
+- Extrae texto de páginas de organismos energéticos (IEA, EIA)
+- Mide frecuencia de keywords energéticos
+- Calcula score de relevancia (menciones / 1000 palabras)
+
+**Structure Mining**
+- Analiza jerarquía de headings, tipos de enlaces y datos estructurados
+- Mide densidad de contenido informacional
+- Detecta presencia de JSON-LD y Open Graph
+
+**Usage Mining**
+- Consume la API pública de EIA (U.S. Energy Information Administration)
+- Obtiene datos de demanda eléctrica diaria del operador NYISO
+- Permite contrastar consumo doméstico vs demanda de red
+
+### 2. Redes Neuronales (`src/redes_neuronales.py`)
+
+Cinco arquitecturas distintas aplicadas al mismo dataset:
+
+| # | Modelo | Objetivo | Arquitectura clave |
+|---|--------|----------|--------------------|
+| 1 | MLP | Clasificación binaria | Dense(128→64→1) + Dropout |
+| 2 | LSTM | Predicción series temporales | LSTM(64) + Dense(32→1) |
+| 3 | CNN 1D | Clasificación en ventanas | Conv1D(32→64) + GlobalAvgPool |
+| 4 | Autoencoder | Detección de anomalías | Encoder(64→32→16) + Decoder |
+| 5 | Red Regresión | Predicción valor continuo | Dense(256→128→64→1) + BatchNorm |
+
+### 3. Reglas de Asociación (`src/reglas_asociacion.py`)
+
+- Discretiza variables continuas (bajo / medio / alto)
+- Construye matriz de transacciones one-hot
+- Aplica FP-Growth con umbrales configurables
+- Genera reglas con soporte, confianza y lift
+- Ejemplo: *"fin_de_semana & sub3_activo → consumo_alto (lift=2.1)"*
+
+---
+
+## Instalación y ejecución
+
+```bash
+# 1. Instalar dependencias
+pip install -r requirements.txt
+
+# 2. Ejecutar dashboard
+streamlit run app.py
+```
+
+El dashboard se abrirá en `http://localhost:8501`.
+
+---
+
+## Dataset
+
+**Individual Household Electric Power Consumption**  
+Fuente: UCI Machine Learning Repository  
+Variables: Global Active Power, Voltage, Global Intensity, Sub Metering 1/2/3
+
+---
+
+## Evaluación del Caso #2
+
+| Rubro | Peso | Implementado |
+|-------|------|-------------|
+| Conceptos: Web Mining, Redes Neuronales, Reglas de Asociación | 30% | ✓ |
+| Implementación integrada en un solo caso práctico | 70% | ✓ |
