@@ -256,15 +256,15 @@ with st.sidebar:
     menu = st.radio(
         "Módulo",
         [
-            "🏠  Inicio",
-            "📊  Exploración del Dataset",
-            "🌐  Web Mining",
-            "🧠  Redes Neuronales",
-            "🔗  Reglas de Asociación",
-            "📈  Series Temporales",
-            "⚙️  Clasificación Clásica",
-            "🔀  K-Fold Validation",
-            "🎛️  Hiperparametrización",
+            "Inicio",
+            "Exploración del Dataset",
+            "Web Mining",
+            "Redes Neuronales",
+            "Reglas de Asociación",
+            "Series Temporales",
+            "Clasificación Clásica",
+            "K-Fold Validation",
+            "Hiperparametrización",
         ]
     )
     st.markdown("---")
