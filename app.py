@@ -14,6 +14,11 @@ Temas integrados:
 import warnings
 warnings.filterwarnings("ignore")
 
+import os
+from dotenv import load_dotenv          # ← NUEVO: carga variables de entorno
+
+load_dotenv()                           # ← NUEVO: lee el archivo .env si existe
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -248,9 +253,19 @@ with st.sidebar:
         ["Dataset Local", "Dataset + EIA API"]
     )
 
-    api_key = ""
+    # ── CORRECCIÓN: carga la key del .env automáticamente ──────
+    # Si existe EIA_API_KEY en el archivo .env, se usa por defecto.
+    # El usuario puede sobreescribirla desde el sidebar.
+    api_key = os.getenv("EIA_API_KEY", "")   # ← CAMBIADO (antes era api_key = "")
     if fuente == "Dataset + EIA API":
-        api_key = st.text_input("EIA API Key", type="password")
+        api_key = st.text_input(
+            "EIA API Key",
+            value=api_key,               # ← CAMBIADO: muestra la key del .env
+            type="password",
+            help="Obtén tu key gratis en eia.gov/opendata"
+        )
+        if not api_key:
+            st.sidebar.warning("Ingresa tu EIA API Key para activar esta función.")
 
     st.markdown("---")
     menu = st.radio(
