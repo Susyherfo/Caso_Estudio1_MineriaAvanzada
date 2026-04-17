@@ -308,7 +308,7 @@ if fuente == "Dataset + EIA API" and api_key:
 # MÓDULO: INICIO
 # ══════════════════════════════════════════════════════════════
 
-if menu == "🏠  Inicio":
+if menu == "Inicio":
     st.markdown("""
     <div class="main-header">
       <h1>⚡ Energy Mining Lab</h1>
@@ -376,7 +376,7 @@ if menu == "🏠  Inicio":
 # MÓDULO: EXPLORACIÓN DEL DATASET
 # ══════════════════════════════════════════════════════════════
 
-elif menu == "📊  Exploración del Dataset":
+elif menu == "Exploración del Dataset":
     st.header("Exploración del Dataset")
     st.markdown('<div class="section-badge">Individual Household Electric Power Consumption</div>',
                 unsafe_allow_html=True)
@@ -429,7 +429,7 @@ elif menu == "📊  Exploración del Dataset":
 # MÓDULO: WEB MINING
 # ══════════════════════════════════════════════════════════════
 
-elif menu == "🌐  Web Mining":
+elif menu == "Web Mining":
     st.header("Web Mining")
     st.markdown('<div class="section-badge">Content · Structure · Usage Mining</div>',
                 unsafe_allow_html=True)
@@ -603,7 +603,7 @@ elif menu == "🌐  Web Mining":
 # MÓDULO: REDES NEURONALES
 # ══════════════════════════════════════════════════════════════
 
-elif menu == "🧠  Redes Neuronales":
+elif menu == "Redes Neuronales":
     st.header("Redes Neuronales")
     st.markdown('<div class="section-badge">5 arquitecturas · Dataset energético</div>',
                 unsafe_allow_html=True)
@@ -799,7 +799,7 @@ Decoder: Dense(32)→Dense(64)→Dense(n_features)""", language="text")
 # MÓDULO: REGLAS DE ASOCIACIÓN
 # ══════════════════════════════════════════════════════════════
 
-elif menu == "🔗  Reglas de Asociación":
+elif menu == "Reglas de Asociación":
     st.header("Reglas de Asociación")
     st.markdown('<div class="section-badge">FP-Growth · Consumo energético discretizado</div>',
                 unsafe_allow_html=True)
@@ -886,7 +886,7 @@ elif menu == "🔗  Reglas de Asociación":
 # MÓDULO: SERIES TEMPORALES (heredado + mejorado)
 # ══════════════════════════════════════════════════════════════
 
-elif menu == "📈  Series Temporales":
+elif menu == "Series Temporales":
     st.header("Series Temporales")
     st.markdown('<div class="section-badge">ARIMA · Holt-Winters · Benchmarking</div>',
                 unsafe_allow_html=True)
@@ -950,7 +950,7 @@ elif menu == "📈  Series Temporales":
 # MÓDULO: CLASIFICACIÓN CLÁSICA
 # ══════════════════════════════════════════════════════════════
 
-elif menu == "⚙️  Clasificación Clásica":
+elif menu == "Clasificación Clásica":
     st.header("Clasificación Clásica")
     st.markdown('<div class="section-badge">Logistic Regression · Random Forest</div>',
                 unsafe_allow_html=True)
@@ -994,7 +994,7 @@ elif menu == "⚙️  Clasificación Clásica":
 # MÓDULO: K-FOLD
 # ══════════════════════════════════════════════════════════════
 
-elif menu == "🔀  K-Fold Validation":
+elif menu == "K-Fold Validation":
     st.header("Validación Cruzada Estratificada K-Fold")
 
     @st.cache_data(show_spinner="Ejecutando K-Fold…")
@@ -1034,7 +1034,7 @@ elif menu == "🔀  K-Fold Validation":
 # MÓDULO: HIPERPARAMETRIZACIÓN
 # ══════════════════════════════════════════════════════════════
 
-elif menu == "🎛️  Hiperparametrización":
+elif menu == "Hiperparametrización":
     st.header("Hiperparametrización")
     st.markdown('<div class="section-badge">Búsqueda Genética · Grid Search exhaustivo</div>',
                 unsafe_allow_html=True)
