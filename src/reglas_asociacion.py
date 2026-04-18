@@ -26,22 +26,34 @@ def discretizar_consumo(df: pd.DataFrame) -> pd.DataFrame:
     """
     Convierte variables continuas en categorías discretas
     para la minería de itemsets.
-
-    Variables discretizadas:
-    - global_active_power  → consumo_bajo / consumo_medio / consumo_alto
-    - voltage              → voltaje_bajo / voltaje_normal / voltaje_alto
-    - sub_metering_1       → sub1_activo / sub1_inactivo
-    - sub_metering_2       → sub2_activo / sub2_inactivo
-    - sub_metering_3       → sub3_activo / sub3_inactivo
-    - hora                 → madrugada / mañana / tarde / noche
-    - día de semana        → dia_laboral / fin_de_semana
     """
     df = df.copy()
     df.columns = df.columns.str.lower()
 
+    # ── Manejo de fecha/hora ─────────────────────────────
     if "period" in df.columns:
-        df["period"] = pd.to_datetime(df["period"])
+        df["period"] = pd.to_datetime(df["period"], errors="coerce")
         df = df.set_index("period")
+
+    # Asegurar que el índice sea datetime
+    if not isinstance(df.index, pd.DatetimeIndex):
+        raise ValueError("El DataFrame debe tener un índice datetime o columna 'period'")
+
+    # ── Conversión a numérico (CLAVE para evitar errores) ──
+    cols_numericas = [
+        "global_active_power",
+        "voltage",
+        "sub_metering_1",
+        "sub_metering_2",
+        "sub_metering_3"
+    ]
+
+    for col in cols_numericas:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    # Eliminar filas con nulos en variables clave
+    df = df.dropna(subset=["global_active_power", "voltage"])
 
     # ── Consumo global ──────────────────────────────────
     q33 = df["global_active_power"].quantile(0.33)
@@ -89,11 +101,12 @@ def discretizar_consumo(df: pd.DataFrame) -> pd.DataFrame:
 
     # ── Día laboral vs fin de semana ─────────────────────
     df["tipo_dia"] = np.where(
-        df.index.dayofweek < 5, "dia_laboral", "fin_de_semana"
+        df.index.dayofweek < 5,
+        "dia_laboral",
+        "fin_de_semana"
     )
 
     return df
-
 
 # ─────────────────────────────────────────────
 # 2. Construcción de transacciones

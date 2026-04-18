@@ -303,6 +303,19 @@ def cargar_df():
     df["day"]     = df["period"].dt.day
     df["month"]   = df["period"].dt.month
     df["weekday"] = df["period"].dt.weekday
+
+    # Convertir columnas numéricas que vienen como string
+    cols_numericas = [
+        "global_active_power", "global_reactive_power",
+        "voltage", "global_intensity",
+        "sub_metering_1", "sub_metering_2", "sub_metering_3"
+    ]
+    for col in cols_numericas:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col].astype(str).str.replace(",", "."), errors="coerce")
+
+    return df
+
     return df
 
 
